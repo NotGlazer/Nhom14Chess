@@ -12,6 +12,13 @@
     - pygame-ce
     </py-env>
 
+    <py-script>
+        import micropip
+    
+        # Install pygame-ce
+        await micropip.install("pygame-ce")
+    </py-script>
+
     <!-- Load and run the Python script -->
     <py-script src="main.py"></py-script>
 </body>
