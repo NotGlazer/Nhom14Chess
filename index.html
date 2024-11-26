@@ -18,23 +18,7 @@
 
     <!-- Specify the Python script to run -->
     <py-script>
-        import pygame
-        pygame.init()
-        print("Pygame initialized")
-
-        # Your game logic goes here (example)
-        screen = pygame.display.set_mode((800, 600))
-        pygame.display.set_caption("PyScript Pygame Example")
-
-        running = True
-        while running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-            screen.fill((0, 0, 0))  # Fill screen with black
-            pygame.display.flip()  # Update the display
-
-        pygame.quit()
+          await micropip.install("pygame-ce")
     </py-script>
 </body>
 </html>
