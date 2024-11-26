@@ -8,6 +8,7 @@ import pygame as p
 import sys
 import ChessEngine
 import ChessAI
+import micropip
 from multiprocessing import Process, Queue
 
 BOARD_WIDTH = BOARD_HEIGHT = 512
@@ -142,8 +143,8 @@ def button_info(screen):
     # Hotkey text (list down format)
     hotkey_lines = [
         "Z: Undo",
-        "S: Save",
         "L: Load",
+        "S: Save",
         "E: Exit",
         "R: Reset"
     ]
