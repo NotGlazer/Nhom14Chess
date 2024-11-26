@@ -2,17 +2,39 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyScript Game with Pygame</title>
+    <!-- PyScript stylesheets and scripts -->
     <link rel="stylesheet" href="https://pyscript.net/releases/2024.10.2/core.css">
     <script type="module" src="https://pyscript.net/releases/2024.10.2/core.js"></script>
 </head>
 <body>
-    <!-- Specify dependencies in py-env -->
+    <h1>Running Pygame with PyScript</h1>
+
+    <!-- Specify dependencies like pygame-ce -->
     <py-env>
-    - pygame-ce
+        - pygame-ce
     </py-env>
 
-    <!-- Load and run the Python script -->
-    <py-script src="main.py"></py-script>
+    <!-- Specify the Python script to run -->
+    <py-script>
+        import pygame
+        pygame.init()
+        print("Pygame initialized")
+
+        # Your game logic goes here (example)
+        screen = pygame.display.set_mode((800, 600))
+        pygame.display.set_caption("PyScript Pygame Example")
+
+        running = True
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+            screen.fill((0, 0, 0))  # Fill screen with black
+            pygame.display.flip()  # Update the display
+
+        pygame.quit()
+    </py-script>
 </body>
 </html>
