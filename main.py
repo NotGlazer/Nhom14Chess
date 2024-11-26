@@ -8,7 +8,6 @@ import pygame as p
 import sys
 import ChessEngine
 import ChessAI
-import micropip
 from multiprocessing import Process, Queue
 
 BOARD_WIDTH = BOARD_HEIGHT = 512
