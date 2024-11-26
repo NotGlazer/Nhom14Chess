@@ -139,29 +139,49 @@ async def title_screen(screen):
 def button_info(screen):
     note_font = p.font.SysFont("helvetica", 18, True, False)
     
-    # Hotkey text (list down format)
-    hotkey_lines = [
-        "Z: Undo",
-        "L: Load",
-        "S: Save",
-        "E: Exit",
-        "R: Reset"
-    ]
+    # Hotkey text and their corresponding flags
+    hotkey_actions = {
+        "U: Undo": "undo_flag",
+        "L: Load": "load_flag",
+        "S: Save": "save_flag",
+        "E: Exit": "exit_flag",
+        "R: Reset": "reset_flag"
+    }
     
-    # Set starting position for the text (bottom-right corner)
+    # Starting position for the text (bottom-right corner)
     x, y = screen.get_width() - 10, screen.get_height() - 10
     
-    # Render each line of the hotkey text
-    for line in hotkey_lines:
-        text_surface = note_font.render(line, True, (255, 255, 255))  # white color
+    # Store button dimensions (x, y, width, height) for each action
+    button_dimensions = {}
+
+    # Render each line of the hotkey text and make clickable
+    for action, flag in hotkey_actions.items():
+        text_surface = note_font.render(action, True, (255, 255, 255))  # Render the text
         text_rect = text_surface.get_rect()
         
-        # Position text so that each line is stacked vertically
+        # Set position for text
         text_rect.bottomright = (x, y)
-        y -= text_rect.height  # Move the y-position up for the next line
+        
+        # Create a semi-transparent background rectangle
+        box_rect = text_rect.inflate(10, 5)  # Slightly larger than the text
+        box_rect.bottomright = text_rect.bottomright
+        
+        # Store button dimensions (x, y, width, height)
+        button_dimensions[flag] = box_rect
+        
+        # Draw the semi-transparent box (button background)
+        semi_transparent_surface = p.Surface((box_rect.width, box_rect.height))
+        semi_transparent_surface.set_alpha(25)  # 10% opacity
+        semi_transparent_surface.fill((255, 255, 255))  # White color
+        screen.blit(semi_transparent_surface, box_rect.topleft)  # Draw the box on screen
         
         # Draw the text on the screen
         screen.blit(text_surface, text_rect)
+        
+        # Move the y-position up for the next line
+        y -= box_rect.height + 5  # Add spacing between options
+    
+    return button_dimensions
 
 
 
@@ -174,6 +194,14 @@ async def main():
     screen = p.display.set_mode((BOARD_WIDTH + MOVE_LOG_PANEL_WIDTH, BOARD_HEIGHT))
     clock = p.time.Clock()
     screen.fill(p.Color("white"))
+
+    flags = {
+        "save_flag": False,
+        "load_flag": False,
+        "undo_flag": False,
+        "reset_flag": False,
+        "exit_flag": False
+    }
 
     # Display title screen and set player mode
     game_mode = await title_screen(screen)
@@ -210,8 +238,18 @@ async def main():
             if e.type == p.QUIT:
                 p.quit()
                 sys.exit()
+
+                        # Check for mouse click and update flags based on button dimensions
+            if e.type == p.MOUSEBUTTONDOWN and e.button == 1:  # Left-click
+                mouse_pos = p.mouse.get_pos()
+                button_dimensions = button_info(screen)
+                
+                # Check if the mouse is inside any button's rectangle
+                for flag, rect in button_dimensions.items():
+                    if rect.collidepoint(mouse_pos):
+                        flags[flag] = True  # Set the corresponding flag to True
             # mouse handler
-            elif e.type == p.MOUSEBUTTONDOWN:
+            if e.type == p.MOUSEBUTTONDOWN:
                 if not game_over:
                     location = p.mouse.get_pos()  # (x, y) location of the mouse
                     col = location[0] // SQUARE_SIZE
@@ -333,6 +371,72 @@ async def main():
         elif game_state.stalemate:
             game_over = True
             drawEndGameText(screen, "Stalemate")
+
+        if flags["save_flag"]:
+            game_state.saveGame()
+            print("Game saved!")
+            flags["save_flag"] = False 
+
+        if flags["load_flag"]:  # Load the game when 'L' is pressed
+            try:
+                flags["load_flag"] = False
+                game_state.loadGame()
+                valid_moves = game_state.getValidMoves()  # Recalculate valid moves after loading
+                square_selected = ()  # Reset the selection state
+                player_clicks = []    # Reset player clicks
+                move_made = False     # No move has been made immediately after loading
+                animate = False       # No animation to process
+                game_over = False     # Reset game over state
+                print("Game loaded!")
+            except FileNotFoundError:
+                print("No saved game found! Press 'S' to save a game first.")
+        if flags["undo_flag"]:  # undo when 'z' is pressed
+            flags["undo_flag"] = False
+            game_state.undoMove()
+            move_made = True
+            animate = False
+            game_over = False
+            if ai_thinking:
+                move_finder_process.terminate()
+                ai_thinking = False
+            move_undone = True
+        if flags["reset_flag"]:  # reset the game when 'r' is pressed
+            flags["reset_flag"] = False
+            game_state = ChessEngine.GameState()
+            valid_moves = game_state.getValidMoves()
+            square_selected = ()
+            player_clicks = []
+            move_made = False
+            animate = False
+            game_over = False
+            if ai_thinking:
+                move_finder_process.terminate()
+                ai_thinking = False
+            move_undone = True
+        if flags["exit_flag"]:   # Exit and return to title screen when 'E' is pressed
+                # Display title screen and set player mode
+            flags["exit_flag"] = False
+            game_mode = await title_screen(screen)
+
+            # Set player types based on game mode
+            if game_mode == "single":
+                player_one = True  # Player one is human
+                player_two = False  # Player two is AI (bot)
+            elif game_mode == "multi":
+                player_one = True  # Player one is human
+                player_two = True  # Player two is also human
+            elif game_mode == "bot_vs_bot":
+                player_one = False  # Player one is bot
+                player_two = False  # Player two is also bot
+            game_state = ChessEngine.GameState()  # Reset the game state
+            valid_moves = game_state.getValidMoves()  # Recalculate valid moves after reset
+            square_selected = ()  # Reset selected square
+            player_clicks = []  # Reset player clicks
+            move_made = False  # No move has been made immediately after reset
+            animate = False  # No animation to process
+            game_over = False  # Reset game over state
+            ai_thinking = False  # Reset AI thinking state
+            move_undone = False  # Reset move undone state
 
         button_info(screen)
         clock.tick(MAX_FPS)
