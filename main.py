@@ -9,6 +9,7 @@ import sys
 import ChessEngine
 import ChessAI
 from multiprocessing import Process, Queue
+import time
 
 BOARD_WIDTH = BOARD_HEIGHT = 512
 MOVE_LOG_PANEL_WIDTH = 250
@@ -230,6 +231,8 @@ async def main():
     move_undone = False
     move_finder_process = None
     move_log_font = p.font.SysFont("Arial", 14, False, False)
+    last_undo_time = None
+    undo_cooldown = 1
 
 
     while running:
@@ -290,11 +293,12 @@ async def main():
                         print("Game loaded!")
                     except FileNotFoundError:
                         print("No saved game found! Press 'S' to save a game first.")
-                if e.key == p.K_z:  # undo when 'z' is pressed
+                if e.key == p.K_u:  # undo when 'z' is pressed
                     game_state.undoMove()
                     move_made = True
                     animate = False
                     game_over = False
+                    last_undo_time = time.time()
                     if ai_thinking:
                         move_finder_process.terminate()
                         ai_thinking = False
@@ -334,44 +338,7 @@ async def main():
                     game_over = False  # Reset game over state
                     ai_thinking = False  # Reset AI thinking state
                     move_undone = False  # Reset move undone state
-
-        # AI move finder
-        if not game_over and not human_turn and not move_undone:
-            if not ai_thinking:
-                ai_thinking = True
-                # Calculate the AI move directly in the main thread
-                ai_move = ChessAI.findBestMove(game_state, valid_moves)
-                if ai_move is None:
-                    ai_move = ChessAI.findRandomMove(valid_moves)
-                game_state.makeMove(ai_move)
-                move_made = True
-                animate = True
-                ai_thinking = False
-
-        if move_made:
-            if animate:
-                await animateMove(game_state.move_log[-1], screen, game_state.board, clock)
-            valid_moves = game_state.getValidMoves()
-            move_made = False
-            animate = False
-            move_undone = False
-
-        drawGameState(screen, game_state, valid_moves, square_selected)
-
-        if not game_over:
-            drawMoveLog(screen, game_state, move_log_font)
-
-        if game_state.checkmate:
-            game_over = True
-            if game_state.white_to_move:
-                drawEndGameText(screen, "Black wins by checkmate")
-            else:
-                drawEndGameText(screen, "White wins by checkmate")
-
-        elif game_state.stalemate:
-            game_over = True
-            drawEndGameText(screen, "Stalemate")
-
+        
         if flags["save_flag"]:
             game_state.saveGame()
             print("Game saved!")
@@ -396,6 +363,7 @@ async def main():
             move_made = True
             animate = False
             game_over = False
+            last_undo_time = time.time()
             if ai_thinking:
                 move_finder_process.terminate()
                 ai_thinking = False
@@ -437,6 +405,49 @@ async def main():
             game_over = False  # Reset game over state
             ai_thinking = False  # Reset AI thinking state
             move_undone = False  # Reset move undone state
+
+        # AI move finder
+        if not game_over and not human_turn and not move_undone:
+            if not ai_thinking:
+                # Check if enough time has passed since the last undo (cooldown)
+                if last_undo_time is None or time.time() - last_undo_time >= undo_cooldown:
+                    ai_thinking = True
+                    # Calculate the AI move directly in the main thread
+                    ai_move = ChessAI.findBestMove(game_state, valid_moves)
+                    if ai_move is None:
+                        ai_move = ChessAI.findRandomMove(valid_moves)
+                    game_state.makeMove(ai_move)
+                    move_made = True
+                    animate = True
+                    ai_thinking = False
+                    last_undo_time = None  # Reset cooldown after AI move
+                else:
+                    # AI waits for cooldown to expire
+                    pass
+
+        if move_made:
+            if animate:
+                await animateMove(game_state.move_log[-1], screen, game_state.board, clock)
+            valid_moves = game_state.getValidMoves()
+            move_made = False
+            animate = False
+            move_undone = False
+
+        drawGameState(screen, game_state, valid_moves, square_selected)
+
+        if not game_over:
+            drawMoveLog(screen, game_state, move_log_font)
+
+        if game_state.checkmate:
+            game_over = True
+            if game_state.white_to_move:
+                drawEndGameText(screen, "Black wins by checkmate")
+            else:
+                drawEndGameText(screen, "White wins by checkmate")
+
+        elif game_state.stalemate:
+            game_over = True
+            drawEndGameText(screen, "Stalemate")
 
         button_info(screen)
         clock.tick(MAX_FPS)
